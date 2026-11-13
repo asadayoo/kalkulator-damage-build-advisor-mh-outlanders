@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Damage & Build Advisor - Monster Hunter Outlanders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #273349; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3b4c6b; }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+
+        .gaming-card {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(55, 65, 81, 0.6);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            70% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans antialiased min-h-screen selection:bg-amber-500/30 selection:text-amber-200 pb-12">
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="border-b border-slate-800/90 bg-slate-900/95 sticky top-0 z-30 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-bold text-xl shrink-0">
+                    <i class="fa-solid fa-crosshairs"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white">MH Outlanders</h1>
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Damage & Build Advisor</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Hitung damage riil & cek bagian stats mana yang paling butuh di-upgrade</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                <button type="button" onclick="loadHbgPreset()" class="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/20 transition active:scale-95">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Load Stats HBG Thunder Saya</span>
+                </button>
+                <button type="button" onclick="resetDefault()" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition active:scale-95">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <div class="lg:col-span-7 space-y-6">
+
+                <section class="gaming-card rounded-2xl p-5 sm:p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-sm font-bold">1</span>
+                            <div>
+                                <h2 class="text-base font-bold text-white">Status Utama Karakter</h2>
+                                <p class="text-[11px] text-slate-400">Lihat angka total di menu <span class="text-slate-200 font-medium">Adventurer / Base Attributes</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-xs font-semibold text-slate-300 mb-2">Elemen Senjata yang Dipakai</label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <button type="button" data-el="none" onclick="setElement('none')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800 transition flex flex-col items-center gap-1">
+                                <i class="fa-solid fa-ban"></i><span>Polos</span>
+                            </button>
+                            <button type="button" data-el="fire" onclick="setElement('fire')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800 transition flex flex-col items-center gap-1">
+                                <i class="fa-solid fa-fire text-red-400"></i><span>Fire</span>
+                            </button>
+                            <button type="button" data-el="water" onclick="setElement('water')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800 transition flex flex-col items-center gap-1">
+                                <i class="fa-solid fa-droplet text-blue-400"></i><span>Water</span>
+                            </button>
+                            <button type="button" data-el="thunder" onclick="setElement('thunder')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-yellow-500/60 bg-yellow-500/15 text-yellow-300 transition flex flex-col items-center gap-1">
+                                <i class="fa-solid fa-bolt text-yellow-400"></i><span>Thunder</span>
+                            </button>
+                            <button type="button" data-el="ice" onclick="setElement('ice')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800 transition flex flex-col items-center gap-1">
+                                <i class="fa-regular fa-snowflake text-cyan-400"></i><span>Ice</span>
+                            </button>
+                            <button type="button" data-el="dragon" onclick="setElement('dragon')" class="el-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800 transition flex flex-col items-center gap-1">
+                                <i class="fa-solid fa-dragon text-purple-400"></i><span>Dragon</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="physAtk" class="text-xs font-semibold text-slate-200">Physical Attack (Base)</label>
+                                <span class="text-[10px] text-slate-400">Serangan Fisik</span>
+                            </div>
+                            <div class="relative">
+                                <input type="number" id="physAtk" value="889" min="0" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">ATK</span>
+                            </div>
+                        </div>
+
+                        <div id="wrap-elemAtk" class="transition-opacity duration-200">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="elemAtk" class="text-xs font-semibold text-yellow-300"><span id="label-elem-name">Thunder</span> Attack</label>
+                                <span class="text-[10px] text-slate-400">Serangan Elemen</span>
+                            </div>
+                            <div class="relative">
+                                <input type="number" id="elemAtk" value="661" min="0" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 rounded-xl px-3.5 py-2.5 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">ELEM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-800/80">
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="affinity" class="text-xs font-semibold text-emerald-300">Affinity (Crit Rate)</label>
+                                <div class="group relative cursor-help">
+                                    <i class="fa-solid fa-circle-question text-slate-400 hover:text-emerald-400 text-xs"></i>
+                                    <div class="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 absolute bottom-full left-0 mb-2 w-56 p-2.5 rounded-xl bg-slate-800 border border-slate-700 shadow-xl text-[11px] text-slate-200 z-20">
+                                        Persentase peluang tembakanmu menghasilkan <strong>Critical Hit</strong> (angka oranye/kuning besar).
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="number" id="affinity" value="38.2" min="0" max="100" step="0.1" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="physCritDmg" class="text-xs font-semibold text-slate-200">Phys. Crit DMG</label>
+                                <div class="group relative cursor-help">
+                                    <i class="fa-solid fa-circle-question text-slate-400 hover:text-amber-400 text-xs"></i>
+                                    <div class="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 absolute bottom-full right-0 mb-2 w-56 p-2.5 rounded-xl bg-slate-800 border border-slate-700 shadow-xl text-[11px] text-slate-200 z-20">
+                                        Tambahan bonus damage fisik saat Crit. Dasar Crit adalah <strong>1.25x</strong> + nilai ini.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="number" id="physCritDmg" value="0.0" min="0" step="0.1" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                        </div>
+
+                        <div id="wrap-elemCritDmg" class="transition-opacity duration-200">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="elemCritDmg" class="text-xs font-semibold text-slate-200">Ele. Crit DMG</label>
+                                <div class="group relative cursor-help">
+                                    <i class="fa-solid fa-circle-question text-slate-400 hover:text-yellow-400 text-xs"></i>
+                                    <div class="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 absolute bottom-full right-0 mb-2 w-56 p-2.5 rounded-xl bg-slate-800 border border-slate-700 shadow-xl text-[11px] text-slate-200 z-20">
+                                        Tambahan bonus damage elemen saat Crit. Dasar Crit elemen adalah <strong>1.25x</strong> + nilai ini.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="number" id="elemCritDmg" value="6.6" min="0" step="0.1" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-yellow-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gaming-card rounded-2xl p-5 sm:p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-sm font-bold">2</span>
+                            <div>
+                                <h2 class="text-base font-bold text-white">Bonus Elemen & Buff Skill Aktif</h2>
+                                <p class="text-[11px] text-slate-400">Bonus dari Visage, Core Senjata, dan Skill yang sedang aktif bertarung</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                        <div id="wrap-elemBonus" class="transition-opacity duration-200">
+                            <label for="elemBonus" class="block text-xs font-semibold text-yellow-300 mb-1.5">Bonus Elemen (Status)</label>
+                            <div class="relative">
+                                <input type="number" id="elemBonus" value="59.1" min="0" step="0.1" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-yellow-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Lihat di bagian <em>Attribute Bonuses</em>.</p>
+                        </div>
+
+                        <div id="wrap-coreBonus" class="transition-opacity duration-200">
+                            <label for="coreBonus" class="block text-xs font-semibold text-slate-200 mb-1.5">Core / Stack Visage</label>
+                            <div class="relative">
+                                <input type="number" id="coreBonus" value="7" min="0" step="0.5" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-yellow-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Misal: Core Effect +7% / Stack 4-pc.</p>
+                        </div>
+
+                        <div>
+                            <label for="physBonus" class="block text-xs font-semibold text-slate-200 mb-1.5">Physical DMG Bonus</label>
+                            <div class="relative">
+                                <input type="number" id="physBonus" value="0" min="0" step="0.5" oninput="calculate()" class="w-full bg-slate-950/90 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2 text-white font-mono text-sm outline-none transition">
+                                <span class="absolute right-3.5 top-2 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Khusus jika ada <em>Physical DMG UP</em>.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                            <div>
+                                <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-fire-flame-curved"></i> Buff "All-Damage" Aktif (Naikkan Fisik & Elemen)
+                                </span>
+                                <p class="text-[11px] text-slate-400">Centang skill/buff yang menyala saat kamu menembak:</p>
+                            </div>
+                            <div class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 self-start sm:self-auto">
+                                Total Buff: <span id="total-all-dmg-display">+30.0%</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
+                            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 cursor-pointer transition select-none">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="buffCapacity" checked onchange="calculate()" class="w-4 h-4 rounded accent-amber-500">
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-200">Capacity Boost Lv.5</div>
+                                        <div class="text-[10px] text-slate-400">Aktif 30 detik setelah reload</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-mono font-bold text-emerald-400">+20%</span>
+                            </label>
+
+                            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 cursor-pointer transition select-none">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="buffFearless" checked onchange="calculate()" class="w-4 h-4 rounded accent-amber-500">
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-200">Fearless Lv.2</div>
+                                        <div class="text-[10px] text-slate-400">Damage naik saat aktif</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-mono font-bold text-emerald-400">+6%</span>
+                            </label>
+
+                            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 cursor-pointer transition select-none">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="buffHunting" checked onchange="calculate()" class="w-4 h-4 rounded accent-amber-500">
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-200">Hunting Instinct Lv.1</div>
+                                        <div class="text-[10px] text-slate-400">Aktif selama 120 detik</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-mono font-bold text-emerald-400">+4%</span>
+                            </label>
+
+                            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 cursor-pointer transition select-none">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="buffTemper" onchange="calculate()" class="w-4 h-4 rounded accent-amber-500">
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-200">Proof of Temper</div>
+                                        <div class="text-[10px] text-slate-400">Bonus tahap lanjut (+20%)</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-mono font-bold text-emerald-400">+20%</span>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 pt-2.5 border-t border-slate-800/80">
+                            <label for="manualAllDmg" class="text-xs text-slate-300">Tambahan Buff Lain / Visage % (Opsional):</label>
+                            <div class="relative w-28">
+                                <input type="number" id="manualAllDmg" value="0" step="0.1" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs outline-none">
+                                <span class="absolute right-2.5 top-1.5 text-xs text-slate-400 font-mono">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="gaming-card rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+                    <div class="flex items-center gap-2.5 pb-3 border-b border-slate-800">
+                        <span class="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-sm font-bold">3</span>
+                        <div>
+                            <h2 class="text-base font-bold text-white">Jenis Serangan, Kelemahan Monster & Spesialisasi</h2>
+                            <p class="text-[11px] text-slate-400">Menentukan seberapa sakit peluru/tebasan dan bagian tubuh monster yang ditembak</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-semibold text-slate-200">Jenis Serangan / Peluru (Motion Value)</label>
+                            <span class="text-xs font-mono text-amber-400 font-bold" id="mv-preview-badge">60% (0.60x)</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
+                            <button type="button" onclick="setMvPreset(60, 60)" class="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-amber-500/50 text-amber-300 transition text-center">
+                                Normal Bullet HBG<br><span class="text-[10px] text-slate-400 font-mono">MV ~60%</span>
+                            </button>
+                            <button type="button" onclick="setMvPreset(110, 110)" class="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition text-center">
+                                Peluru Kuat / Charge<br><span class="text-[10px] text-slate-400 font-mono">MV ~110%</span>
+                            </button>
+                            <button type="button" onclick="setMvPreset(26, 26)" class="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition text-center">
+                                Tebasan Cepat<br><span class="text-[10px] text-slate-400 font-mono">MV ~26%</span>
+                            </button>
+                            <button type="button" onclick="setMvPreset(95, 95)" class="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition text-center">
+                                Charged Slash<br><span class="text-[10px] text-slate-400 font-mono">MV ~95%</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="physMv" class="block text-[11px] text-slate-400 mb-1">Motion Value Fisik (%)</label>
+                                <input type="number" id="physMv" value="60" min="1" step="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-1.5 text-white font-mono text-xs outline-none">
+                            </div>
+                            <div id="wrap-elemMv">
+                                <label for="elemMv" class="block text-[11px] text-slate-400 mb-1">Motion Value Elemen (%)</label>
+                                <input type="number" id="elemMv" value="60" min="1" step="1" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 focus:border-yellow-500 rounded-xl px-3 py-1.5 text-white font-mono text-xs outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800/80">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-semibold text-slate-200">Bagian Monster yang Ditembak (Hitzone)</label>
+                            <span class="text-xs font-mono text-cyan-400 font-bold" id="hz-preview-badge">Fisik 60 / Elemen 45</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mb-2.5">
+                            <button type="button" onclick="setHzPreset(60, 45)" class="py-2 px-2 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-cyan-500/50 text-cyan-300 transition text-center">
+                                Titik Lemah (Kepala)<br><span class="text-[10px] text-slate-400 font-mono">60 / 45</span>
+                            </button>
+                            <button type="button" onclick="setHzPreset(45, 30)" class="py-2 px-2 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition text-center">
+                                Badan Biasa<br><span class="text-[10px] text-slate-400 font-mono">45 / 30</span>
+                            </button>
+                            <button type="button" onclick="setHzPreset(25, 15)" class="py-2 px-2 rounded-xl text-[11px] font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition text-center">
+                                Kulit Keras / Ekor<br><span class="text-[10px] text-slate-400 font-mono">25 / 15</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="physHz" class="block text-[11px] text-slate-400 mb-1">Kelemahan Fisik (0 - 100)</label>
+                                <input type="number" id="physHz" value="60" min="1" max="150" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-1.5 text-white font-mono text-xs outline-none">
+                            </div>
+                            <div id="wrap-elemHz">
+                                <label for="elemHz" class="block text-[11px] text-slate-400 mb-1">Kelemahan Elemen (0 - 100)</label>
+                                <input type="number" id="elemHz" value="45" min="0" max="150" oninput="calculate()" class="w-full bg-slate-950 border border-slate-700 focus:border-yellow-500 rounded-xl px-3 py-1.5 text-white font-mono text-xs outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="wrap-spec" class="pt-4 border-t border-slate-800/80 transition-opacity duration-200">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <label for="specStage" class="text-xs font-semibold text-slate-200">Spesialisasi Elemen (Inscription)</label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" id="isProtagonist" checked onchange="calculate()" class="w-3.5 h-3.5 rounded accent-amber-500">
+                                <span class="text-[11px] font-medium text-amber-300">Karakter Protagonis</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                            <select id="specStage" onchange="calculate()" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-white text-xs outline-none cursor-pointer">
+                                <option value="0">Belum Buka Spesialisasi (0%)</option>
+                                <option value="1">Spesialisasi I (+5%)</option>
+                                <option value="2">Spesialisasi II (+10%)</option>
+                                <option value="3">Spesialisasi III (+15%)</option>
+                                <option value="4" selected>Spesialisasi IV (+20%)</option>
+                                <option value="5">Spesialisasi V (Protag: +22%)</option>
+                                <option value="6">Spesialisasi VI (Protag: +23.5%)</option>
+                                <option value="7">Spesialisasi VII (Protag: +25%)</option>
+                            </select>
+                            <div class="text-[11px] text-slate-400 bg-slate-950/70 px-3 py-2 rounded-xl border border-slate-800">
+                                Pengali Spesialisasi: <span id="spec-mult-text" class="font-mono font-bold text-emerald-400">1.20x (+20%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <div class="lg:col-span-5 lg:sticky lg:top-20 space-y-6">
+
+                <div class="rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/40 p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+                    <div class="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-crosshairs"></i> Estimasi Damage Per Hit
+                        </span>
+                        <span class="text-[11px] font-mono text-slate-400">Crit Rate: <strong id="res-crit-rate" class="text-emerald-400">38.2%</strong></span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2.5 mb-4">
+                        <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 text-center">
+                            <div class="text-[10px] font-semibold uppercase text-slate-400">Normal (Non-Crit)</div>
+                            <div id="res-noncrit" class="text-2xl sm:text-3xl font-extrabold font-mono text-slate-200 mt-1">317</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Angka Putih</div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-gradient-to-b from-amber-500/15 to-slate-950 border border-amber-500/50 text-center shadow-lg shadow-amber-500/5">
+                            <div class="text-[10px] font-bold uppercase text-amber-400">Saat Crit!</div>
+                            <div id="res-crit" class="text-2xl sm:text-3xl font-extrabold font-mono text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400 mt-1">406</div>
+                            <div class="text-[10px] text-amber-400/80 mt-0.5">Angka Kuning</div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-slate-950/90 border border-emerald-500/30 text-center">
+                            <div class="text-[10px] font-semibold uppercase text-emerald-400">Rata-rata / Hit</div>
+                            <div id="res-avg" class="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-300 mt-1">351</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Efektif DPS</div>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 mb-4">
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-300 font-medium">Fisik: <strong id="res-phys-val" class="font-mono text-amber-300">200</strong> <span id="res-phys-pct" class="text-slate-500 text-[11px]">(49%)</span></span>
+                            <span class="text-slate-300 font-medium"><span id="res-elem-label">Thunder</span>: <strong id="res-elem-val" class="font-mono text-yellow-300">206</strong> <span id="res-elem-pct" class="text-slate-500 text-[11px]">(51%)</span></span>
+                        </div>
+                        <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden flex p-0.5">
+                            <div id="bar-phys" class="bg-amber-500 h-full rounded-l-full transition-all duration-300" style="width: 49%"></div>
+                            <div id="bar-elem" class="bg-yellow-400 h-full rounded-r-full transition-all duration-300" style="width: 51%"></div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-semibold text-slate-300">Simulasi 10x Tembakan (Sesuai Affinity)</span>
+                            <button type="button" onclick="simulate10Shots()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition active:scale-95">
+                                <i class="fa-solid fa-gun"></i> Tembak 10x!
+                            </button>
+                        </div>
+                        <div id="shot-results-grid" class="grid grid-cols-5 gap-1.5 text-center font-mono text-xs"></div>
+                        <div class="flex justify-between text-[11px] text-slate-400 mt-2">
+                            <span>Total 10 Tembakan: <strong id="shot-total-10" class="text-white font-mono">0</strong></span>
+                            <span>Crit Keluar: <strong id="shot-crit-count" class="text-amber-400 font-mono">0/10</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gaming-card rounded-2xl p-5 sm:p-6 shadow-xl border-l-4 border-l-emerald-500">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-sm sm:text-base font-bold text-white">Build Advisor: Saran Upgrade Stats</h2>
+                                <p class="text-[11px] text-slate-400">Analisis otomatis kekurangan stats & prioritas upgrade</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="advisor-list" class="space-y-3 mt-3"></div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentElement = 'thunder';
+        let currentCalc = {
+            nonCrit: 317,
+            crit: 406,
+            avg: 351,
+            affinity: 38.2
+        };
+
+        const SPEC_TABLE = {
+            0: { std: 0, protag: 0 },
+            1: { std: 0.05, protag: 0.05 },
+            2: { std: 0.10, protag: 0.10 },
+            3: { std: 0.15, protag: 0.15 },
+            4: { std: 0.20, protag: 0.20 },
+            5: { std: 0.25, protag: 0.22 },
+            6: { std: 0.30, protag: 0.235 },
+            7: { std: 0.35, protag: 0.25 }
+        };
+
+        const ELEM_STYLES = {
+            none:    { name: 'Polos',   btnClass: 'border-slate-400/60 bg-slate-500/20 text-white', barColor: 'bg-slate-400' },
+            fire:    { name: 'Fire',    btnClass: 'border-red-500/60 bg-red-500/15 text-red-300', barColor: 'bg-red-500' },
+            water:   { name: 'Water',   btnClass: 'border-blue-500/60 bg-blue-500/15 text-blue-300', barColor: 'bg-blue-500' },
+            thunder: { name: 'Thunder', btnClass: 'border-yellow-500/60 bg-yellow-500/15 text-yellow-300', barColor: 'bg-yellow-400' },
+            ice:     { name: 'Ice',     btnClass: 'border-cyan-500/60 bg-cyan-500/15 text-cyan-300', barColor: 'bg-cyan-400' },
+            dragon:  { name: 'Dragon',  btnClass: 'border-purple-500/60 bg-purple-500/15 text-purple-300', barColor: 'bg-purple-500' }
+        };
+
+        function setElement(el) {
+            currentElement = el;
+            document.querySelectorAll('.el-btn').forEach(btn => {
+                const key = btn.getAttribute('data-el');
+                btn.className = 'el-btn py-2 px-2 rounded-xl text-xs font-semibold border transition flex flex-col items-center gap-1';
+                if (key === el) {
+                    btn.className += ` ${ELEM_STYLES[el].btnClass}`;
+                } else {
+                    btn.className += ' border-slate-700 bg-slate-800/60 text-slate-400 hover:bg-slate-800';
+                }
+            });
+
+            const isNone = (el === 'none');
+            ['wrap-elemAtk', 'wrap-elemCritDmg', 'wrap-elemBonus', 'wrap-coreBonus', 'wrap-elemMv', 'wrap-elemHz', 'wrap-spec'].forEach(id => {
+                const node = document.getElementById(id);
+                if (node) {
+                    node.classList.toggle('opacity-40', isNone);
+                    node.classList.toggle('pointer-events-none', isNone);
+                }
+            });
+
+            const elName = isNone ? 'Element' : ELEM_STYLES[el].name;
+            document.getElementById('label-elem-name').textContent = elName;
+            document.getElementById('res-elem-label').textContent = elName;
+            document.getElementById('bar-elem').className = `${ELEM_STYLES[el].barColor} h-full rounded-r-full transition-all duration-300`;
+
+            calculate();
+        }
+
+        function setMvPreset(pMv, eMv) {
+            document.getElementById('physMv').value = pMv;
+            document.getElementById('elemMv').value = eMv;
+            calculate();
+        }
+
+        function setHzPreset(pHz, eHz) {
+            document.getElementById('physHz').value = pHz;
+            document.getElementById('elemHz').value = eHz;
+            calculate();
+        }
+
+        function loadHbgPreset() {
+            document.getElementById('physAtk').value = 889;
+            document.getElementById('elemAtk').value = 661;
+            document.getElementById('affinity').value = 38.2;
+            document.getElementById('physCritDmg').value = 0.0;
+            document.getElementById('elemCritDmg').value = 6.6;
+
+            document.getElementById('elemBonus').value = 59.1;
+            document.getElementById('coreBonus').value = 7;
+            document.getElementById('physBonus').value = 0;
+
+            document.getElementById('buffCapacity').checked = true;
+            document.getElementById('buffFearless').checked = true;
+            document.getElementById('buffHunting').checked = true;
+            document.getElementById('buffTemper').checked = false;
+            document.getElementById('manualAllDmg').value = 0;
+
+            document.getElementById('physMv').value = 60;
+            document.getElementById('elemMv').value = 60;
+            document.getElementById('physHz').value = 60;
+            document.getElementById('elemHz').value = 45;
+
+            document.getElementById('isProtagonist').checked = true;
+            document.getElementById('specStage').value = 4;
+
+            setElement('thunder');
+            simulate10Shots();
+            showToast('Stats HBG Thunder (300–400 DMG) berhasil dimuat!');
+        }
+
+        function resetDefault() {
+            document.getElementById('physAtk').value = 500;
+            document.getElementById('elemAtk').value = 250;
+            document.getElementById('affinity').value = 25;
+            document.getElementById('physCritDmg').value = 10;
+            document.getElementById('elemCritDmg').value = 10;
+
+            document.getElementById('elemBonus').value = 20;
+            document.getElementById('coreBonus').value = 0;
+            document.getElementById('physBonus').value = 0;
+
+            document.getElementById('buffCapacity').checked = false;
+            document.getElementById('buffFearless').checked = false;
+            document.getElementById('buffHunting').checked = false;
+            document.getElementById('buffTemper').checked = false;
+            document.getElementById('manualAllDmg').value = 0;
+
+            document.getElementById('physMv').value = 40;
+            document.getElementById('elemMv').value = 40;
+            document.getElementById('physHz').value = 50;
+            document.getElementById('elemHz').value = 35;
+
+            document.getElementById('isProtagonist').checked = true;
+            document.getElementById('specStage').value = 2;
+
+            setElement('thunder');
+            simulate10Shots();
+            showToast('Kalkulator di-reset ke nilai standar.');
+        }
+
+        function calculate() {
+            const physAtk = Math.max(0, parseFloat(document.getElementById('physAtk').value) || 0);
+            const elemAtk = currentElement === 'none' ? 0 : Math.max(0, parseFloat(document.getElementById('elemAtk').value) || 0);
+            const affinity = Math.min(100, Math.max(0, parseFloat(document.getElementById('affinity').value) || 0));
+            const physCritDmg = Math.max(0, parseFloat(document.getElementById('physCritDmg').value) || 0);
+            const elemCritDmg = currentElement === 'none' ? 0 : Math.max(0, parseFloat(document.getElementById('elemCritDmg').value) || 0);
+
+            const elemBonus = currentElement === 'none' ? 0 : (parseFloat(document.getElementById('elemBonus').value) || 0);
+            const coreBonus = currentElement === 'none' ? 0 : (parseFloat(document.getElementById('coreBonus').value) || 0);
+            const physBonus = parseFloat(document.getElementById('physBonus').value) || 0;
+
+            let allDmgBuff = 0;
+            if (document.getElementById('buffCapacity').checked) allDmgBuff += 20;
+            if (document.getElementById('buffFearless').checked) allDmgBuff += 6;
+            if (document.getElementById('buffHunting').checked) allDmgBuff += 4;
+            if (document.getElementById('buffTemper').checked) allDmgBuff += 20;
+            allDmgBuff += (parseFloat(document.getElementById('manualAllDmg').value) || 0);
+
+            document.getElementById('total-all-dmg-display').textContent = `+${allDmgBuff.toFixed(1).replace(/\.0$/, '')}%`;
+
+            const physMv = Math.max(0, parseFloat(document.getElementById('physMv').value) || 0);
+            const elemMv = currentElement === 'none' ? 0 : Math.max(0, parseFloat(document.getElementById('elemMv').value) || 0);
+            const physHz = Math.max(0, parseFloat(document.getElementById('physHz').value) || 0);
+            const elemHz = currentElement === 'none' ? 0 : Math.max(0, parseFloat(document.getElementById('elemHz').value) || 0);
+
+            document.getElementById('mv-preview-badge').textContent = `${physMv}% (${(physMv/100).toFixed(2)}x)`;
+            document.getElementById('hz-preview-badge').textContent = `Fisik ${physHz} / Elemen ${elemHz}`;
+
+            const isProtag = document.getElementById('isProtagonist').checked;
+            const stageIdx = currentElement === 'none' ? 0 : (parseInt(document.getElementById('specStage').value) || 0);
+            const specRate = currentElement === 'none' ? 0 : (isProtag ? SPEC_TABLE[stageIdx].protag : SPEC_TABLE[stageIdx].std);
+            const specMult = 1 + specRate;
+
+            document.getElementById('spec-mult-text').textContent = `${specMult.toFixed(3).replace(/\.?0+$/, '')}x (+${(specRate*100).toFixed(1).replace(/\.0$/, '')}%)`;
+
+            const CONSTANT = 0.4;
+            const physBonusMult = 1 + (physBonus / 100) + (allDmgBuff / 100);
+            const elemBonusMult = 1 + ((elemBonus + coreBonus) / 100) + (allDmgBuff / 100);
+
+            const physCritMult = 1.25 + (physCritDmg / 100);
+            const elemCritMult = 1.25 + (elemCritDmg / 100);
+
+            const physNonCrit = physAtk * physBonusMult * 1 * (physHz / 100) * CONSTANT * specMult * (physMv / 100);
+            const elemNonCrit = elemAtk * elemBonusMult * 1 * (elemHz / 100) * CONSTANT * specMult * (elemMv / 100);
+            const totalNonCrit = physNonCrit + elemNonCrit;
+
+            const physCrit = physAtk * physBonusMult * physCritMult * (physHz / 100) * CONSTANT * specMult * (physMv / 100);
+            const elemCrit = elemAtk * elemBonusMult * elemCritMult * (elemHz / 100) * CONSTANT * specMult * (elemMv / 100);
+            const totalCrit = physCrit + elemCrit;
+
+            const cr = affinity / 100;
+            const totalAvg = (totalCrit * cr) + (totalNonCrit * (1 - cr));
+
+            currentCalc = {
+                nonCrit: Math.round(totalNonCrit),
+                crit: Math.round(totalCrit),
+                avg: Math.round(totalAvg),
+                affinity: affinity,
+                rawNonCrit: totalNonCrit,
+                rawCrit: totalCrit,
+                rawAvg: totalAvg
+            };
+
+            document.getElementById('res-crit-rate').textContent = `${affinity.toFixed(1).replace(/\.0$/, '')}%`;
+            document.getElementById('res-noncrit').textContent = Math.round(totalNonCrit);
+            document.getElementById('res-crit').textContent = Math.round(totalCrit);
+            document.getElementById('res-avg').textContent = Math.round(totalAvg);
+
+            const physRounded = Math.round(physCrit);
+            const elemRounded = Math.round(elemCrit);
+            const physShare = totalCrit > 0 ? (physCrit / totalCrit) * 100 : 50;
+            const elemShare = totalCrit > 0 ? (elemCrit / totalCrit) * 100 : 50;
+
+            document.getElementById('res-phys-val').textContent = physRounded;
+            document.getElementById('res-phys-pct').textContent = `(${physShare.toFixed(0)}%)`;
+            document.getElementById('res-elem-val').textContent = elemRounded;
+            document.getElementById('res-elem-pct').textContent = `(${elemShare.toFixed(0)}%)`;
+            document.getElementById('bar-phys').style.width = `${physShare}%`;
+            document.getElementById('bar-elem').style.width = `${elemShare}%`;
+
+            runBuildAdvisor({
+                physAtk, elemAtk, affinity, physCritDmg, elemCritDmg,
+                elemBonus, coreBonus, allDmgBuff, stageIdx,
+                physBonusMult, elemBonusMult, physHz, elemHz, physMv, elemMv, specMult
+            });
+        }
+
+        function simulate10Shots() {
+            const grid = document.getElementById('shot-results-grid');
+            grid.innerHTML = '';
+            let total10 = 0;
+            let critCount = 0;
+
+            for (let i = 0; i < 10; i++) {
+                const isCrit = (Math.random() * 100) < currentCalc.affinity;
+                const variance = 0.98 + (Math.random() * 0.04);
+                const dmg = Math.round((isCrit ? currentCalc.rawCrit : currentCalc.rawNonCrit) * variance);
+                total10 += dmg;
+                if (isCrit) critCount++;
+
+                const cell = document.createElement('div');
+                cell.style.animationDelay = `${i * 30}ms`;
+                if (isCrit) {
+                    cell.className = 'animate-pop py-1.5 px-1 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold shadow-sm';
+                    cell.innerHTML = `${dmg}<span class="block text-[8px] text-amber-400">CRIT</span>`;
+                } else {
+                    cell.className = 'animate-pop py-1.5 px-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400';
+                    cell.innerHTML = `${dmg}<span class="block text-[8px] text-slate-600">HIT</span>`;
+                }
+                grid.appendChild(cell);
+            }
+
+            document.getElementById('shot-total-10').textContent = total10.toLocaleString('id-ID');
+            document.getElementById('shot-crit-count').textContent = `${critCount}/10`;
+        }
+
+        function runBuildAdvisor(stats) {
+            const advisorList = document.getElementById('advisor-list');
+            const recommendations = [];
+            const CONSTANT = 0.4;
+
+            if (stats.physCritDmg < 15 || (currentElement !== 'none' && stats.elemCritDmg < 15)) {
+                const simPhysCrit = stats.physAtk * stats.physBonusMult * (1.25 + (stats.physCritDmg + 25)/100) * (stats.physHz/100) * CONSTANT * stats.specMult * (stats.physMv/100);
+                const simElemCrit = stats.elemAtk * stats.elemBonusMult * (1.25 + (stats.elemCritDmg + 25)/100) * (stats.elemHz/100) * CONSTANT * stats.specMult * (stats.elemMv/100);
+                const newCritTotal = Math.round(simPhysCrit + simElemCrit);
+                const gain = newCritTotal - currentCalc.crit;
+
+                recommendations.push({
+                    priority: 'SANGAT TINGGI',
+                    badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+                    icon: 'fa-burst text-rose-400',
+                    title: `Crit Damage Masih Terlalu Rendah (Phys ${stats.physCritDmg}% / Ele ${stats.elemCritDmg}%)`,
+                    desc: `Seranganmu sudah punya <strong>${stats.physAtk} Attack</strong> dan <strong>${(stats.elemBonus + stats.coreBonus).toFixed(1)}% Bonus Elemen</strong>, tapi pengali saat Crit masih mentok di dasar (~1.25x). Cari sub-stat <strong>Phys. Crit DMG</strong> & <strong>Ele. Crit DMG</strong> di Visage / Engrave!`,
+                    impact: `Simulasi +25% Crit DMG → Angka Crit melonjak dari <strong>${currentCalc.crit}</strong> menjadi <strong>${newCritTotal}</strong> (+${gain} DMG/hit)!`
+                });
+            }
+
+            if (stats.affinity < 65) {
+                const targetAff = Math.min(100, stats.affinity + 30);
+                const newAvg = Math.round((currentCalc.rawCrit * (targetAff / 100)) + (currentCalc.rawNonCrit * (1 - (targetAff / 100))));
+                const avgGain = newAvg - currentCalc.avg;
+
+                recommendations.push({
+                    priority: 'PRIORITAS',
+                    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                    icon: 'fa-bullseye text-amber-400',
+                    title: `Affinity (Crit Rate) Baru ${stats.affinity}% — Crit Belum Konsisten`,
+                    desc: `Di angka ${stats.affinity}%, lebih dari separuh pelurumu masih keluar angka putih (${currentCalc.nonCrit} DMG). Kejar minimal <strong>65%–80% Affinity</strong> lewat set <em>Ink of Combat</em>, sub-stat Visage Cost 4/Cost 1, atau Buddy SSR.`,
+                    impact: `Simulasi +30% Affinity (jadi ${targetAff.toFixed(0)}%) → Rata-rata DPS naik dari <strong>${currentCalc.avg}</strong> ke <strong>${newAvg}</strong> (+${avgGain} per tembakan).`
+                });
+            }
+
+            if (currentElement !== 'none' && stats.stageIdx < 5) {
+                recommendations.push({
+                    priority: 'UPGRADE PROGRES',
+                    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                    icon: 'fa-angles-up text-cyan-400',
+                    title: `Tingkatkan Spesialisasi Elemen (Inscription Stage V–VII)`,
+                    desc: `Pengali Spesialisasi Elemen mengalikan <strong>jalur Fisik sekaligus Elemen</strong>. Menaikkan tahap Inscription memberi kenaikan damage murni tanpa syarat kondisi.`,
+                    impact: `Setiap naik 1 tahap memberi dorongan multiplier langsung ke total akhir damage.`
+                });
+            }
+
+            if (currentElement !== 'none' && stats.elemAtk < stats.physAtk * 0.5) {
+                recommendations.push({
+                    priority: 'OPTIMASI',
+                    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                    icon: 'fa-scale-unbalanced text-purple-400',
+                    title: `Elemental Attack (${stats.elemAtk}) Tertinggal Jauh dari Physical (${stats.physAtk})`,
+                    desc: `Bonus elemenmu sudah besar, tapi nilai dasar <em>Elemental Attack</em> masih kecil sehingga hasil perkalian elemennya kurang maksimal. Tingkatkan level senjata atau slot penambah Elemental Attack.`,
+                    impact: `Semakin tinggi base Elemental Attack, semakin besar efek dari ${stats.elemBonus}% Bonus Elemenmu.`
+                });
+            }
+
+            if (recommendations.length === 0) {
+                recommendations.push({
+                    priority: 'BUILD SOLID!',
+                    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                    icon: 'fa-crown text-emerald-400',
+                    title: `Distribusi Stats Sudah Sangat Seimbang & Optimal!`,
+                    desc: `Attack dasar, Affinity, Crit Damage, dan Bonus Elemen kamu sudah berada di rasio yang ideal untuk berburu monster tingkat tinggi.`,
+                    impact: `Fokus berikutnya: Maksimalkan level senjata, jaga uptime buff reload, dan incar titik lemah monster.`
+                });
+            }
+
+            advisorList.innerHTML = recommendations.map(rec => `
+                <div class="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 text-xs font-bold text-white">
+                            <i class="fa-solid ${rec.icon}"></i>
+                            <span>${rec.title}</span>
+                        </div>
+                        <span class="shrink-0 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${rec.badgeColor}">${rec.priority}</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">${rec.desc}</p>
+                    <div class="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 mt-1">
+                        <i class="fa-solid fa-arrow-trend-up mr-1"></i> ${rec.impact}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-amber-500/50 text-amber-300 shadow-2xl text-xs font-semibold backdrop-blur-md transition-all duration-300 opacity-0 translate-y-2';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${msg}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-2'));
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 250);
+            }, 2600);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setElement('thunder');
+            calculate();
+            simulate10Shots();
+        });
+    </script>
+</body>
+</html>
